@@ -68,7 +68,7 @@ class DistanceNetwork:
 
 
 
-	def __call__(self, support_set, target_image, name, training_flag = False):
+	def __call__(self, support_embeddings, target_embedding, name, training_flag = False):
 		"""
 		this module calculates the cosine distance between each of the support set embeddings and the target image embddings
 		:param support_set:  the embedding of support set images, tensor of shape [sequence_length, batch_size, 64]
@@ -81,10 +81,11 @@ class DistanceNetwork:
 		with tf.name_scopee('distance_module' + name), tf.variable_scope('distance_module', reuse = self.reuse):
 			eps = 1e-10
 			similarities = []
-			for support_image in tf.unstack(support_set, axis=0):
-				sum_support = tf.reduce_sum(tf.square(support_image), 1, keep_dims = True)
+			for support_embedding in tf.unstack(support_embeddings, axis=0):
+				sum_support = tf.reduce_sum(tf.square(support_embedding), 1, keep_dims = True)
 				support_magnitude = tf.rsqrt(tf.clip_by_value(sum_support, eps, float("inf")))
-
+				dot_product = tf.matmul(tf.expand_dims(target_embedding, 1), tf.expand_dims(support_embedding, 2))
+				dot_product = 
 
 
 
@@ -274,7 +275,11 @@ class EmbeddingNetwork:
 			g_conv6_embedding = tf.layers.dropout(g_conv6_embedding, rate = 0.5, training = training_flag)
 
 
-	return g_conv6_embedding
+		g_conv_embedding = tf.contrib.layers.flatten(g_conv6_embedding)
+
+	self.reuse = True
+	self.variables = tf.get_collection(tf.GraphKesys.TRAINABLE_VARIABLES, scope = 'g')
+	return g_conv_embedding
 
 
 
@@ -319,7 +324,25 @@ class MatchingNetwork:
 			[b, ways, shots, h, w, c] = self.support_set_images.get_shape().as_list()
 			self.support_set_images = tf.reshape(self.support_set_images, shape = [b, ways*shots, h, w, c])
 			for image in tf.unstack(self.support_set_images, axis = 1):
-				gen_embeddings = self.g(image)
+				gen_embeddings = self.g(image_input = image, training_flag = self.is_training, keep_prob = self.keep_prob)
+				embedded_images.append(gen_embeddings)
+
+			target_image = self.target_image
+			gen_target_image_embeddings = self.g(image_input = target_image, training_flag = is_training, keep_prob = self.keep_prob)
+
+			embedded_images.append(gen_target_image_embeddings)
+
+			#if fce is true, then apply embedding the image with lstm
+			if self.fce:
+				embedded_images, output_state_fw, output_state_bw = self.lstm(embedded_images, name = 'lstm', training_flag = is_training)
+
+
+			outputs = tf.stack(embedded_images)
+
+			#calculate the similarities between the target image with the support images
+
+			similarities = self.dn()
+
 
 
 
