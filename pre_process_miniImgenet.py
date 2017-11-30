@@ -9,8 +9,10 @@ import six
 import argparse
 from PIL import Image
 import scipy.misc
+import cv2
+from PIL import Image
 
-input_dir = '/home/fenoms/meta_learning/master_thesis/miniImagenet/csv'
+input_dir = '/home/fenoms/meta_learning/master_thesis/miniImagenet/csv/'
 
 data_dir = '/home/fenoms/meta_learning/master_thesis/miniImagenet/'
 
@@ -46,12 +48,16 @@ def pre_process_data(data_path, out_to_file):
         print(label)
         tar = tarfile.open(data_dir + label + '.tar')
         imgs = tar.getmembers()
+        print(len(imgs))
         np.random.shuffle(imgs)
         
         c = 0
         
         for img in imgs:
+            k = np.random.randint(0, 4)
             f = tar.extractfile(img)
+            f = Image.open(f)
+            f.rotate(k*90)
             try:
                 img_array = _read_image_as_array(f)
                 img_array = scipy.misc.imresize(img_array, (84, 84))
@@ -62,18 +68,19 @@ def pre_process_data(data_path, out_to_file):
                 lable_names.append(label)
                 c += 1
             except Exception as e:
-                print("skipping image...")
+                print("skipping image, because " + str(e))
             
             if c == 600:
                 break
-        results = {key : np.concatenate(value) for key, value in tmp_dict.items()}
-        np.savez(data_dir + out_to_file + ".npz", **results)
-        sub = pd.DataFrame({'img_file': file_names, 'label':lable_names})
-        sub.to_csv(data_dir + out_to_file + '.csv', index=False)
+        print(c)
+    results = {key : np.concatenate(value) for key, value in tmp_dict.items()}
+    np.savez(data_dir + out_to_file + ".npz", **results)
+    sub = pd.DataFrame({'img_file': file_names, 'label':lable_names})
+    sub.to_csv(data_dir + out_to_file + '.csv', index=False)
 
 
 if __name__ == '__main__':
-    download_imgs()
+    #download_imgs()
     print("trian...")
     pre_process_data(input_dir + 'train.csv', 'train')
     print("val...")
