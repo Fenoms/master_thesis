@@ -148,7 +148,7 @@ class EmbeddingNetwork:
                                                                         scale = True, center = True, is_training = training_flag)
                     g_conv1_embedding = leaky_relu(g_conv1_embedding, name = 'outputs')
                 with tf.variable_scope('conv_block_2'):
-                    g_conv1_embedding = tf.layers.conv2d(image_input, nb_channels, [3, 3], strides = (1, 1),
+                    g_conv1_embedding = tf.layers.conv2d(g_conv1_embedding, nb_channels, [3, 3], strides = (1, 1),
                         padding = 'SAME')
 
                     g_conv1_embedding = tf.contrib.layers.batch_norm(g_conv1_embedding, updates_collections = None, decay = 0.99, 
@@ -157,7 +157,7 @@ class EmbeddingNetwork:
 
                 with tf.variable_scope('conv_block_3'):
 
-                    g_conv1_embedding = tf.layers.conv2d(image_input, nb_channels, [3, 3], strides = (1, 1),
+                    g_conv1_embedding = tf.layers.conv2d(g_conv1_embedding, nb_channels, [3, 3], strides = (1, 1),
                         padding = 'SAME')
 
                     g_conv1_embedding = tf.contrib.layers.batch_norm(g_conv1_embedding, updates_collections = None, decay = 0.99, 
@@ -169,7 +169,7 @@ class EmbeddingNetwork:
                 g_conv1_embedding = tf.add(g_conv1_embedding, short_cut)
                 
                 g_conv1_embedding = max_pool(g_conv1_embedding, ksize = [1, 2, 2, 1], strides = (1, 2, 2, 1), padding = 'SAME')
-
+                print(g_conv1_embedding.shape)
 
             with tf.variable_scope('res_block_2'):
                 short_cut = g_conv1_embedding
@@ -182,7 +182,7 @@ class EmbeddingNetwork:
                                                                         scale = True, center = True, is_training = training_flag)
                     g_conv2_embedding = leaky_relu(g_conv2_embedding, name = 'outputs')
                 with tf.variable_scope('conv_block_2'):
-                    g_conv2_embedding = tf.layers.conv2d(image_input, nb_channels, [3, 3], strides = (1, 1),
+                    g_conv2_embedding = tf.layers.conv2d(g_conv2_embedding, nb_channels, [3, 3], strides = (1, 1),
                         padding = 'SAME')
 
                     g_conv2_embedding = tf.contrib.layers.batch_norm(g_conv2_embedding, updates_collections = None, decay = 0.99, 
@@ -191,7 +191,7 @@ class EmbeddingNetwork:
 
                 with tf.variable_scope('conv_block_3'):
 
-                    g_conv2_embedding = tf.layers.conv2d(image_input, nb_channels, [3, 3], strides = (1, 1),
+                    g_conv2_embedding = tf.layers.conv2d(g_conv2_embedding, nb_channels, [3, 3], strides = (1, 1),
                         padding = 'SAME')
 
                     g_conv2_embedding = tf.contrib.layers.batch_norm(g_conv2_embedding, updates_collections = None, decay = 0.99, 
@@ -216,7 +216,7 @@ class EmbeddingNetwork:
                                                                         scale = True, center = True, is_training = training_flag)
                     g_conv3_embedding = leaky_relu(g_conv3_embedding, name = 'outputs')
                 with tf.variable_scope('conv_block_2'):
-                    g_conv3_embedding = tf.layers.conv2d(image_input, nb_channels, [3, 3], strides = (1, 1),
+                    g_conv3_embedding = tf.layers.conv2d(g_conv3_embedding, nb_channels, [3, 3], strides = (1, 1),
                         padding = 'SAME')
 
                     g_conv3_embedding = tf.contrib.layers.batch_norm(g_conv3_embedding, updates_collections = None, decay = 0.99, 
@@ -225,7 +225,7 @@ class EmbeddingNetwork:
 
                 with tf.variable_scope('conv_block_3'):
 
-                    g_conv3_embedding = tf.layers.conv2d(image_input, nb_channels, [3, 3], strides = (1, 1),
+                    g_conv3_embedding = tf.layers.conv2d(g_conv3_embedding, nb_channels, [3, 3], strides = (1, 1),
                         padding = 'SAME')
 
                     g_conv3_embedding = tf.contrib.layers.batch_norm(g_conv3_embedding, updates_collections = None, decay = 0.99, 
@@ -250,7 +250,7 @@ class EmbeddingNetwork:
                                                                         scale = True, center = True, is_training = training_flag)
                     g_conv4_embedding = leaky_relu(g_conv4_embedding, name = 'outputs')
                 with tf.variable_scope('conv_block_2'):
-                    g_conv4_embedding = tf.layers.conv2d(image_input, nb_channels, [3, 3], strides = (1, 1),
+                    g_conv4_embedding = tf.layers.conv2d(g_conv4_embedding, nb_channels, [3, 3], strides = (1, 1),
                         padding = 'SAME')
 
                     g_conv4_embedding = tf.contrib.layers.batch_norm(g_conv4_embedding, updates_collections = None, decay = 0.99, 
@@ -259,7 +259,7 @@ class EmbeddingNetwork:
 
                 with tf.variable_scope('conv_block_3'):
 
-                    g_conv4_embedding = tf.layers.conv2d(image_input, nb_channels, [3, 3], strides = (1, 1),
+                    g_conv4_embedding = tf.layers.conv2d(g_conv4_embedding, nb_channels, [3, 3], strides = (1, 1),
                         padding = 'SAME')
 
                     g_conv4_embedding = tf.contrib.layers.batch_norm(g_conv4_embedding, updates_collections = None, decay = 0.99, 
@@ -298,7 +298,7 @@ class EmbeddingNetwork:
             g_conv_embedding = tf.contrib.layers.flatten(g_conv6_embedding)
 
         self.reuse = True
-        self.variables = tf.get_collection(tf.GraphKesys.TRAINABLE_VARIABLES, scope = 'g')
+        self.variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope = 'g')
         return g_conv_embedding
 
 
