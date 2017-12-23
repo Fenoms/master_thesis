@@ -1,6 +1,6 @@
 import tensorflow as tf
 import tqdm
-from one_shot_learning_network import MatchingNetwork
+from network import MatchingNetwork
 
 
 class ExperimentBuilder:
@@ -63,7 +63,7 @@ class ExperimentBuilder:
             for i in range(total_train_batches):  # train epoch
                 x_support_set, y_support_set, x_target, y_target = self.data.get_batch('train')
                 _, c_loss_value, acc = sess.run(
-                    [self.c_error_opt_op, self.losses[self.miniImagenet.classify], self.losses[self.miniImagenet.dn]],
+                    [self.c_error_opt_op, self.losses[self.few_shot_miniImagenet.classify], self.losses[self.few_shot_miniImagenet.dn]],
                     feed_dict={self.keep_prob: 1.0, self.support_set_images: x_support_set,
                                self.support_set_labels: y_support_set, self.target_image: x_target, self.target_label: y_target,
                                self.training_phase: True, self.learning_rate: self.current_learning_rate})
@@ -97,7 +97,7 @@ class ExperimentBuilder:
             for i in range(total_val_batches):  # validation epoch
                 x_support_set, y_support_set, x_target, y_target = self.data.get_batch("val")
                 c_loss_value, acc = sess.run(
-                    [self.losses[self.miniImagenet.classify], self.losses[self.miniImagenet.dn]],
+                    [self.losses[self.few_shot_miniImagenet.classify], self.losses[self.few_shot_miniImagenet.dn]],
                     feed_dict={self.keep_prob: 1.0, self.support_set_images: x_support_set,
                                self.support_set_labels: y_support_set, self.target_image: x_target, self.target_label: y_target,
                                self.training_phase: False})
