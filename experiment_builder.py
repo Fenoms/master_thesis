@@ -1,6 +1,6 @@
 import tensorflow as tf
 import tqdm
-from network import MatchingNetwork
+from network import FewshotsNet
 
 
 class ExperimentBuilder:
@@ -14,40 +14,40 @@ class ExperimentBuilder:
         """
         self.data = data
 
-    def build_experiment(self, batch_size, classes_per_set, samples_per_class, fce):
+    def build_experiment(self, batch_size, num_classes, num_samples_per_class, query_size, image_shape):
 
         """
 
         :param batch_size: The experiment batch size
-        :param classes_per_set: An integer indicating the number of classes per support set
-        :param samples_per_class: An integer indicating the number of samples per class
+        :param num_classes: An integer indicating the number of classes per support set
+        :param num_samples_per_class: An integer indicating the number of samples per class
         :param channels: The image channels
         :param fce: Whether to use full context embeddings or not
-        :return: a matching_network object, along with the losses, the training ops and the init op
+        :return: a few_shot_learning object, along with the losses, the training ops and the init op
         """
-        height, width, channels = [84, 84, 3]
-        self.support_set_images = tf.placeholder(tf.float32, [batch_size, classes_per_set, samples_per_class, height, width,
-                                                              channels], 'support_set_images')
-        self.support_set_labels = tf.placeholder(tf.int32, [batch_size, classes_per_set, samples_per_class], 'support_set_labels')
-        self.target_image = tf.placeholder(tf.float32, [batch_size, height, width, channels], 'target_image')
-        self.target_label = tf.placeholder(tf.int32, [batch_size], 'target_label')
-        self.training_phase = tf.placeholder(tf.bool, name='training-flag')
+        height, width, channels = image_shape
+        self.support_set_x = tf.placeholder(tf.float32, shape = [batch_size, num_classes, num_samples_per_class, height, width,
+                                                              channels], name = 'support_set_images')
+        self.support_set_y = tf.placeholder(tf.uint8, shape = [batch_size, num_classes, num_samples_per_class], name = 'support_set_labels')
+        self.query_x = tf.placeholder(tf.float32, shape = [batch_size, query_x, height, width, channels], name = 'query_images')
+        self.query_y = tf.placeholder(tf.uint8, shape = [batch_size, query_size], name = 'query_labels')
+        self.is_training = tf.placeholder(tf.bool, name='training_flag')
         #self.rotate_flag = tf.placeholder(tf.bool, name='rotate-flag')
-        self.keep_prob = tf.placeholder(tf.float32, name='dropout-prob')
-        self.current_learning_rate = 1e-03
-        self.learning_rate = tf.placeholder(tf.float32, name='learning-rate-set')
-        self.few_shot_miniImagenet = MatchingNetwork(batch_size=batch_size, support_set_images=self.support_set_images,
-                                            support_set_labels=self.support_set_labels,
-                                            target_image=self.target_image, target_label=self.target_label,
+        self.keep_prob = tf.placeholder(tf.float32, name='dropout_prob')
+        self.current_learning_rate = 0.01
+        self.learning_rate = tf.placeholder(tf.float32, name='learning_rate')
+        self.few_shot_miniImagenet = FewshotsNet(batch_size=batch_size, support_set_images=self.support_set_x,
+                                            support_set_labels=self.support_set_y,
+                                            query_images=self.query_x, query_labels=self.query_y,
                                             keep_prob=self.keep_prob, num_channels=channels,
-                                            is_training=self.training_phase, fce=fce,
-                                            num_classes_per_set=classes_per_set,
-                                            num_samples_per_class=samples_per_class, learning_rate=self.learning_rate)
+                                            is_training=self.is_training,
+                                            num_classes_per_set=num_classes,
+                                            num_samples_per_class=num_samples_per_class, learning_rate=self.learning_rate)
 
-        summary, self.losses, self.c_error_opt_op = self.few_shot_miniImagenet.init_train()
+        summary, self.losses, self.ada_opts = self.few_shot_miniImagenet.init_train()
         init = tf.global_variables_initializer()
         self.total_train_iter = 0
-        return self.few_shot_miniImagenet, self.losses, self.c_error_opt_op, init
+        return self.few_shot_miniImagenet, self.losses, self.ada_opts, init
 
     def run_training_epoch(self, total_train_batches, sess):
         """
@@ -61,11 +61,11 @@ class ExperimentBuilder:
         with tqdm.tqdm(total=total_train_batches) as pbar:
 
             for i in range(total_train_batches):  # train epoch
-                x_support_set, y_support_set, x_target, y_target = self.data.get_batch('train')
+                support_set_x, support_set_y, query_x, query_y = self.data.get_batch('train')
                 _, c_loss_value, acc = sess.run(
-                    [self.c_error_opt_op, self.losses[self.few_shot_miniImagenet.classify], self.losses[self.few_shot_miniImagenet.dn]],
-                    feed_dict={self.keep_prob: 1.0, self.support_set_images: x_support_set,
-                               self.support_set_labels: y_support_set, self.target_image: x_target, self.target_label: y_target,
+                    [self.ada_opts, self.losses['loss'], self.losses['accuracy']],
+                    feed_dict={self.keep_prob: 1.0, self.support_set_images: support_set_x,
+                               self.support_set_labels: support_set_y, self.query_x: query_x, self.query_y: query_y,
                                self.training_phase: True, self.learning_rate: self.current_learning_rate})
 
                 iter_out = "train_loss: {}, train_accuracy: {}".format(c_loss_value, acc)
@@ -95,11 +95,11 @@ class ExperimentBuilder:
 
         with tqdm.tqdm(total=total_val_batches) as pbar:
             for i in range(total_val_batches):  # validation epoch
-                x_support_set, y_support_set, x_target, y_target = self.data.get_batch("val")
+                support_set_x, support_set_y, query_x, query_y = self.data.get_batch("val")
                 c_loss_value, acc = sess.run(
                     [self.losses[self.few_shot_miniImagenet.classify], self.losses[self.few_shot_miniImagenet.dn]],
-                    feed_dict={self.keep_prob: 1.0, self.support_set_images: x_support_set,
-                               self.support_set_labels: y_support_set, self.target_image: x_target, self.target_label: y_target,
+                    feed_dict={self.keep_prob: 1.0, self.support_set_images: support_set_x,
+                               self.support_set_labels: support_set_y, self.query_x: query_x, self.query_y: query_y,
                                self.training_phase: False})
 
                 iter_out = "val_loss: {}, val_accuracy: {}".format(c_loss_value, acc)
@@ -125,12 +125,12 @@ class ExperimentBuilder:
         total_test_accuracy = 0.
         with tqdm.tqdm(total=total_test_batches) as pbar:
             for i in range(total_test_batches):
-                x_support_set, y_support_set, x_target, y_target = self.data.get_batch("test")
+                support_set_x, support_set_y, query_x, query_y = self.data.get_batch("test")
                 c_loss_value, acc = sess.run(
                     [self.losses[self.miniImagenet.classify], self.losses[self.miniImagenet.dn]],
-                    feed_dict={self.keep_prob: 1.0, self.support_set_images: x_support_set,
-                               self.support_set_labels: y_support_set, self.target_image: x_target,
-                               self.target_label: y_target,
+                    feed_dict={self.keep_prob: 1.0, self.support_set_images: support_set_x,
+                               self.support_set_labels: support_set_y, self.query_x: query_x,
+                               self.query_y: query_y,
                                self.training_phase: False})
 
                 iter_out = "test_loss: {}, test_accuracy: {}".format(c_loss_value, acc)

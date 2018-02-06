@@ -1,71 +1,93 @@
+import tensorflow as tf
 from network import *
 from experiment_builder import ExperimentBuilder
 import tensorflow.contrib.slim as slim
 import miniImagenetdata as dataset
 import tqdm
-from storage import *
 
 tf.reset_default_graph()
 
 # Experiment Setup
 batch_size = 32
-fce = False
-classes_per_set = 20
-samples_per_class = 5
-continue_from_epoch = -1  # use -1 to start from scratch
-logs_path = "log_outputs/"
-experiment_name = "few_shot_learning_embedding_{}_{}".format(samples_per_class, classes_per_set)
+num_classes = 5
+num_samples_per_class = 5
+query_size = 15
+image_shape = [84, 84, 3]
+restore = False
+total_epochs = 50
+total_training_episodes = 1000
+total_val_episodes = 250
+total_test_episodes = 250
+
+path = os.getcwd()
+data_dir = path + '/miniImagenetdata'
+
+experiment_name = "few_shot_learning_embedding_{}_{}".format(num_samples_per_class, num_classes)
 
 # Experiment builder
-data = dataset.MiniImageNet(batch_size=batch_size,
-                                    classes_per_set=classes_per_set, samples_per_class=samples_per_class)
-experiment = ExperimentBuilder(data)
-few_shot_miniImagenet, losses, c_error_opt_op, init = experiment.build_experiment(batch_size,
-                                                                                     classes_per_set,
-                                                                                     samples_per_class, fce)
-total_epochs = 30
-total_train_batches = 1000
-total_val_batches = 250
-total_test_batches = 250
+data = dataset.MiniImagenetData(data_dir = data_dir, image_shape = image_shape, batch_size=batch_size, num_classes=num_classes, 
+                                    num_samples_per_class=num_samples_per_class, query_size = query_size)
 
-save_statistics(experiment_name, ["epoch", "train_c_loss", "train_c_accuracy", "val_loss", "val_accuracy",
-                                  "test_c_loss", "test_c_accuracy"])
+experiment = ExperimentBuilder(data)
+
+few_shot_miniImagenet, losses, ada_opts, init = experiment.build_experiment(batch_size = batch_size, 
+                                                                                num_classes = num_classes, num_samples_per_class = num_samples_per_class, 
+                                                                                    query_size = query_size, image_shape = image_shape)
+
+# define saver object for storing and retrieving checkpoints
+saver = tf.train.Saver()
+if not os.path.exists('save_dir'):
+    os.makedirs('save_dir')
+
+save_path = os.path.join(save_dir, '/best_validation') # path for the checkpoint file
+
+if not os.path.exists('logs_dir'):
+    os.makedirs('logs_dir')
+logs_path = os.path.join(logs_dir, '/logs')
 
 # Experiment initialization and running
 with tf.Session() as sess:
-    sess.run(init)
-    saver = tf.train.Saver()
-    if continue_from_epoch != -1: #load checkpoint if needed
-        checkpoint = "saved_models/{}_{}.ckpt".format(experiment_name, continue_from_epoch)
-        variables_to_restore = []
-        for var in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES):
-            print(var)
-            variables_to_restore.append(var)
+    if restore:
+        try:
+            print("tring to restore last checkpoint...")
+            last_chk_path = tf.train.latest_checkpoint(checkpoint_dir = save_dir)
+            saver.restore(sess, save_path = last_chk_path)
+            print("restored checkpoint from: ", last_chk_path)
+        except:
+            print("failed to restore checkpoint.")
+            sess.run(init)
+    else:
+        sess.run(init)
+    # if restore_flag == True: #load checkpoint if needed
+    #     checkpoint = "saved_models/{}_{}.ckpt".format(experiment_name, restore_flag)
+    #     variables_to_restore = []
+    #     for var in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES):
+    #         print(var)
+    #         variables_to_restore.append(var)
 
-        tf.logging.info('Fine-tuning from %s' % checkpoint)
+    #     tf.logging.info('Fine-tuning from %s' % checkpoint)
 
-        fine_tune = slim.assign_from_checkpoint_fn(
-            checkpoint,
-            variables_to_restore,
-            ignore_missing_vars=True)
-        fine_tune(sess)
+    #     fine_tune = slim.assign_from_checkpoint_fn(
+    #         checkpoint,
+    #         variables_to_restore,
+    #         ignore_missing_vars=True)
+    #     fine_tune(sess)
 
     best_val = 0.
     with tqdm.tqdm(total=total_epochs) as pbar_e:
         for e in range(0, total_epochs):
-            total_c_loss, total_accuracy = experiment.run_training_epoch(total_train_batches=total_train_batches,
+            total_c_loss, total_accuracy = experiment.run_training_epoch(total_training_episodes=total_training_episodes,
                                                                                 sess=sess)
             print("Epoch {}: train_loss: {}, train_accuracy: {}".format(e, total_c_loss, total_accuracy))
 
-            total_val_c_loss, total_val_accuracy = experiment.run_validation_epoch(
-                                                                                total_val_batches=total_val_batches,
-                                                                                sess=sess)
+            total_val_c_loss, total_val_accuracy = experiment.run_validation_epoch(total_val_episodes=total_val_episodes,
+                                                                                        sess=sess)
             print("Epoch {}: val_loss: {}, val_accuracy: {}".format(e, total_val_c_loss, total_val_accuracy))
 
             if total_val_accuracy >= best_val: #if new best val accuracy -> produce test statistics
                 best_val = total_val_accuracy
                 total_test_c_loss, total_test_accuracy = experiment.run_testing_epoch(
-                                                                    total_test_batches=total_test_batches, sess=sess)
+                                                                    total_test_episodes=total_test_episodes, sess=sess)
                 print("Epoch {}: test_loss: {}, test_accuracy: {}".format(e, total_test_c_loss, total_test_accuracy))
             else:
                 total_test_c_loss = -1
