@@ -4,13 +4,14 @@ from experiment_builder import ExperimentBuilder
 import tensorflow.contrib.slim as slim
 import miniImagenetdata as dataset
 import tqdm
+import os
 
 tf.reset_default_graph()
 
 # Experiment Setup
 batch_size = 32
-num_classes = 5
-num_samples_per_class = 5
+ways = 5
+shots = 5
 query_size = 15
 image_shape = [84, 84, 3]
 restore = False
@@ -18,21 +19,22 @@ total_epochs = 50
 total_training_episodes = 1000
 total_val_episodes = 250
 total_test_episodes = 250
+data_format = 'channel_last'
 
 path = os.getcwd()
-data_dir = path + '/miniImagenetdata'
+data_dir = path + '/miniImagenet/'
 
-experiment_name = "few_shot_learning_embedding_{}_{}".format(num_samples_per_class, num_classes)
+experiment_name = "few_shot_learning_embedding_{}_{}".format(shots, ways)
 
 # Experiment builder
-data = dataset.MiniImagenetData(data_dir = data_dir, image_shape = image_shape, batch_size=batch_size, num_classes=num_classes, 
-                                    num_samples_per_class=num_samples_per_class, query_size = query_size)
+data = dataset.MiniImagenetData(data_dir = data_dir, image_shape = image_shape, batch_size=batch_size, ways=ways, 
+                                    shots=shots, query_size = query_size)
 
 experiment = ExperimentBuilder(data)
 
-few_shot_miniImagenet, losses, ada_opts, init = experiment.build_experiment(batch_size = batch_size, 
-                                                                                num_classes = num_classes, num_samples_per_class = num_samples_per_class, 
-                                                                                    query_size = query_size, image_shape = image_shape)
+few_shot_miniImagenet, losses, ada_opts, init = experiment.build_experiment(batch_size = batch_size, ways = ways, 
+                                                                                shots = shots, query_size = query_size, 
+                                                                                    image_shape = image_shape, data_format = data_format)
 
 # define saver object for storing and retrieving checkpoints
 saver = tf.train.Saver()

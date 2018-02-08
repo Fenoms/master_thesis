@@ -304,7 +304,7 @@ def comparisonNet_generator(block_fn, data_format = None):
 
 class FewshotsNet:
     """"""
-    def __init__(self, support_set_images, support_set_labels, query_images, query_labels, 
+    def __init__(self, support_set_images, support_set_labels, query_images, query_labels, data_format,
                     is_training, keep_prob=0.5, batch_size=16, num_channels=3, learning_rate=0.01):
 
 

@@ -14,22 +14,22 @@ class ExperimentBuilder:
         """
         self.data = data
 
-    def build_experiment(self, batch_size, num_classes, num_samples_per_class, query_size, image_shape):
+    def build_experiment(self, batch_size, ways, shots, query_size, image_shape, data_format):
 
         """
 
         :param batch_size: The experiment batch size
-        :param num_classes: An integer indicating the number of classes per support set
-        :param num_samples_per_class: An integer indicating the number of samples per class
+        :param ways: An integer indicating the number of classes per support set
+        :param shots: An integer indicating the number of samples per class
         :param channels: The image channels
         :param fce: Whether to use full context embeddings or not
         :return: a few_shot_learning object, along with the losses, the training ops and the init op
         """
         height, width, channels = image_shape
-        self.support_set_x = tf.placeholder(tf.float32, shape = [batch_size, num_classes, num_samples_per_class, height, width,
+        self.support_set_x = tf.placeholder(tf.float32, shape = [batch_size, ways, shots, height, width,
                                                               channels], name = 'support_set_images')
-        self.support_set_y = tf.placeholder(tf.uint8, shape = [batch_size, num_classes, num_samples_per_class], name = 'support_set_labels')
-        self.query_x = tf.placeholder(tf.float32, shape = [batch_size, query_x, height, width, channels], name = 'query_images')
+        self.support_set_y = tf.placeholder(tf.uint8, shape = [batch_size, ways, shots], name = 'support_set_labels')
+        self.query_x = tf.placeholder(tf.float32, shape = [batch_size, query_size, height, width, channels], name = 'query_images')
         self.query_y = tf.placeholder(tf.uint8, shape = [batch_size, query_size], name = 'query_labels')
         self.is_training = tf.placeholder(tf.bool, name='training_flag')
         #self.rotate_flag = tf.placeholder(tf.bool, name='rotate-flag')
@@ -38,11 +38,9 @@ class ExperimentBuilder:
         self.learning_rate = tf.placeholder(tf.float32, name='learning_rate')
         self.few_shot_miniImagenet = FewshotsNet(batch_size=batch_size, support_set_images=self.support_set_x,
                                             support_set_labels=self.support_set_y,
-                                            query_images=self.query_x, query_labels=self.query_y,
+                                            query_images=self.query_x, query_labels=self.query_y, data_format = data_format,
                                             keep_prob=self.keep_prob, num_channels=channels,
-                                            is_training=self.is_training,
-                                            num_classes_per_set=num_classes,
-                                            num_samples_per_class=num_samples_per_class, learning_rate=self.learning_rate)
+                                            is_training=self.is_training, learning_rate=self.learning_rate)
 
         summary, self.losses, self.ada_opts = self.few_shot_miniImagenet.init_train()
         init = tf.global_variables_initializer()

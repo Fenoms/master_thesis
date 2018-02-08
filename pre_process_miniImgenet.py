@@ -8,13 +8,14 @@ import warnings
 import six
 import argparse
 from PIL import Image
-import scipy.misc
+# import scipy.misc
 import pickle
 
+path = os.getcwd()
 
-input_dir = '/home/fenoms/master_thesis/miniImagenet/csv/'
+input_dir = path + '/miniImagenet/csv/'
 
-data_dir = '/home/fenoms/master_thesis/miniImagenet/'
+data_dir = path + '/miniImagenet/'
 
 def _read_image_as_array(image, dtype='int32'):
     f = Image.open(image)
@@ -36,7 +37,7 @@ def download_imgs():
     labels = train.label.unique().tolist() + test.label.unique().tolist() + val.label.unique().tolist()
 
     for label in labels:
-        os.system('wget "http://image-net.org/download/synset?wnid=' + label + '&username=fenoms&accesskey=acdcf71fbeafbdbc2cb0036e89b1c614346c733e&release=latest&src=stanford" -O /home/fenoms/master_thesis/miniImagenet/' + label + '.tar')
+        os.system('wget "http://image-net.org/download/synset?wnid=' + label + '&username=fenoms&accesskey=acdcf71fbeafbdbc2cb0036e89b1c614346c733e&release=latest&src=stanford" -O /home/dl-box/master_thesis/miniImagenet/' + label + '.tar')
 
 
 def arrange_images(data_path, out_to_file):
@@ -79,7 +80,7 @@ def data_process(data_path, out_to_file):
     dataset = pd.read_csv(data_path, sep = ',')
     labels = dataset.label.unique().tolist()
 
-    data = np.zeros((64, 600, 244, 224, 3), dtype = np.float32)
+    data = np.zeros((64, 600, 224, 224, 3), dtype = np.float32)
     label = np.zeros((64, 600,), dtype = np.float32)
     i = 0
     for i, label in enumerate(labels):
@@ -118,7 +119,7 @@ def pre_process_data(data_path, out_to_file):
         
         tar = tarfile.open(data_dir + label + '.tar')
         imgs = tar.getmembers()
-        np.random.shuffle(imgs)
+        # np.random.shuffle(imgs)
         
         c = 0
         
@@ -127,10 +128,15 @@ def pre_process_data(data_path, out_to_file):
             f = tar.extractfile(img)
             
             try:
-                img_array = _read_image_as_array(f)
-                img_array = scipy.misc.imresize(img_array, (84, 84))
-                img_array = img_array.astype('float32')
-                tmp_dict[label].append(img_array.reshape((1, 84, 84, 3)))
+                f = Image.open(f)
+                f = f.resize((224, 224))
+                f = np.asarray(f, dtype = np.float32)
+                f = np.reshape(f, (1, 224, 224, 3))
+                # img_array = _read_image_as_array(f)
+                # img_array = scipy.misc.imresize(img_array, (84, 84))
+                # img_array = img_array.astype('float32')
+                tmp_dict[label].append(f)
+
                 c += 1
             except Exception as e:
                 print("skipping image, because " + str(e))
@@ -204,18 +210,19 @@ def process_data(data_path, out_to_file):
     pickle.dump(training_data, pickle_tra_in)
     pickle.dump(val_data, pickle_val_in)
     print("saved successfully")
-	   
+       
  
 if __name__ == '__main__':
-    #download_imgs()
-    # print("trian...")
+    # download_imgs()
+    print("trian...")
+    pre_process_data(input_dir + 'train.csv', 'train')
     # process_data(input_dir + 'train.csv', 'training_data')
-    print("arrange training images")
-    arrange_images(input_dir + 'train.csv', 'train')
-    print("arrange validation images")
-    arrange_images(input_dir + 'val.csv', 'val')
-    print("arrange testing images")
-    arrange_images(input_dir + 'test.csv', 'test')
+    # print("arrange training images")
+    # arrange_images(input_dir + 'train.csv', 'train')
+    # print("arrange validation images")
+    # arrange_images(input_dir + 'val.csv', 'val')
+    # print("arrange testing images")
+    # arrange_images(input_dir + 'test.csv', 'test')
     # print("val...")
     # pre_process_data(input_dir + 'val.csv', 'val')
     # print("test...")
